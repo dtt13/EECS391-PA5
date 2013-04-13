@@ -17,9 +17,12 @@
     You should have received a copy of the GNU General Public License
     along with SEPIA.  If not, see <http://www.gnu.org/licenses/>.
  */
+import java.awt.Point;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,6 +31,7 @@ import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.environment.model.history.History;
 import edu.cwru.sepia.environment.model.state.State.StateView;
+import edu.cwru.sepia.environment.model.state.Unit.UnitView;
 
 /**
  * @author Derrick Tilsner
@@ -41,6 +45,11 @@ public class RLAgent extends Agent {
 	StateView currentState;
 	private int step;
 	
+	private PreviousState prevState;
+	private ArrayList<Integer> footmanIds;
+	private ArrayList<Integer> enemyIds;
+	
+	
 	public RLAgent(int playernum, String[] arguments) {
 		super(playernum);
 		
@@ -51,6 +60,28 @@ public class RLAgent extends Agent {
 	public Map<Integer, Action> initialStep(StateView newState, History.HistoryView statehistory) {
 		step = 0;
 		currentState = newState;
+		
+		List<Integer> friendUnitIds = currentState.getUnitIds(0);
+		HashMap<Integer, Integer> friendHP = new HashMap<Integer, Integer>();
+		footmanIds = new ArrayList<Integer>();
+		for(int i = 0; i < friendUnitIds.size(); i++) {
+			int id = friendUnitIds.get(i);
+			UnitView unit = currentState.getUnit(id);
+			footmanIds.add(id);
+			friendHP.put(id, unit.getHP());
+		}
+		List<Integer> enemyUnitIds = currentState.getUnitIds(1);
+		HashMap<Integer, Integer> enemyHP = new HashMap<Integer, Integer>();
+		enemyIds = new ArrayList<Integer>();
+		for(int i = 0; i < enemyUnitIds.size(); i++) {
+			int id = enemyUnitIds.get(i);
+			UnitView unit = currentState.getUnit(id);
+			enemyIds.add(id);
+			enemyHP.put(id, unit.getHP());
+		}
+		
+		prevState = new PreviousState(footmanIds, friendHP, enemyIds, enemyHP);
+		
 		
 		return middleStep(newState, statehistory);
 	}
@@ -64,6 +95,13 @@ public class RLAgent extends Agent {
 		}
 		Map<Integer, Action> builder = new HashMap<Integer, Action>();
 		
+		//ANALYZE PHASE
+		
+		
+		//DECIDE PHASE
+		
+		
+		//EXECUTE PHASE
 		return builder;
 	}
 
@@ -79,6 +117,19 @@ public class RLAgent extends Agent {
 		}
 	}
 
+	/**
+	 * @param footmanId - id of attacker
+	 * @return enemy's target id
+	 */
+	private int findNextTarget(int footmanId) {
+		//incorporate a global or previous state parameter
+		//that keeps track of which footmen are going to be attacking who
+		
+		
+		//this will be called in loop of middleStep DECIDE PHASE
+		return 0;
+	}
+	
 	@Override
 	public void savePlayerData(OutputStream os) {
 		//this agent lacks learning and so has nothing to persist.
