@@ -17,6 +17,7 @@
     You should have received a copy of the GNU General Public License
     along with SEPIA.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
@@ -43,7 +44,6 @@ public class RLAgent extends Agent {
 	
 	public RLAgent(int playernum, String[] arguments) {
 		super(playernum);
-		
 	}
 
 	
