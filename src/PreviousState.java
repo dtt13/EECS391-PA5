@@ -7,6 +7,7 @@ public class PreviousState {
 
 	private ArrayList<Integer> footmanIds = new ArrayList<Integer>();
 	private HashMap<Integer, Integer> footmanHP = new HashMap<Integer, Integer>();
+	private HashMap<Integer, Integer> footmanAttack = new HashMap<Integer, Integer>();
 	private ArrayList<Integer> toRemoveFootman = new ArrayList<Integer>();
 	
 	private ArrayList<Integer> enemyIds = new ArrayList<Integer>();
@@ -15,11 +16,12 @@ public class PreviousState {
 	
 	private StateView state;
 	
-	public PreviousState(ArrayList<Integer> footmanIds, HashMap<Integer, Integer> footmanHP,
+	public PreviousState(ArrayList<Integer> footmanIds, HashMap<Integer, Integer> footmanHP, HashMap<Integer, Integer> footmanAttack,
 			ArrayList<Integer> enemyIds, HashMap<Integer, Integer> enemyHP, StateView state) {
 		for(Integer id : footmanIds) {
 			this.footmanIds.add(id);
 			this.footmanHP.put(id, footmanHP.get(id));
+			this.footmanAttack.put(id, footmanAttack.get(id));
 		}
 		for(Integer id : enemyIds) {
 			this.enemyIds.add(id);
@@ -39,6 +41,18 @@ public class PreviousState {
 			return null;
 		}
 		return footmanHP.get(id);
+	}
+	
+	/**
+	 * 
+	 * @param id - The id of the footman you are concerned with.
+	 * @return null if the footman doesn't exist. The id of the enemy that that footman was attacking if it does exist.
+	 */
+	public Integer getFootmanAttack(int id) {
+		if(!footmanAttack.containsKey(id)) {
+			return null;
+		}
+		return footmanAttack.get(id);
 	}
 	
 	/**
@@ -65,6 +79,16 @@ public class PreviousState {
 	
 	/**
 	 * 
+	 * @param footmanId - ID of the footman who is attacking
+	 * @param enemyId - ID of the enemy being attacked
+	 */
+	public void setFootmanAttack(int footmanId, int enemyId) {
+		footmanAttack.remove(footmanId);
+		footmanAttack.put(footmanId, enemyId);
+	}
+	
+	/**
+	 * 
 	 * @param id - ID of the enemy whose HP has changed.
 	 * @param HP - The new HP.
 	 */
@@ -82,7 +106,9 @@ public class PreviousState {
 	}
 
 	public void markFootmanForRemoval(int id) {
-		toRemoveFootman.add(id);
+		if(!toRemoveFootman.contains(id)) {
+			toRemoveFootman.add(id);
+		}
 	}
 	
 	public void removeMarkedFootman() {
@@ -93,12 +119,17 @@ public class PreviousState {
 			if(footmanHP.containsKey(id)) {
 				footmanHP.remove(id);
 			}
+			if(footmanAttack.containsKey(id)) {
+				footmanAttack.remove(id);
+			}
 		}
 		toRemoveFootman = new ArrayList<Integer>();
 	}
 	
 	public void markEnemyForRemoval(int id) {
-		toRemoveEnemy.add(id);
+		if(!toRemoveEnemy.contains(id)) {
+			toRemoveEnemy.add(id);			
+		}
 	}
 	
 	public void removeMarkedEnemy() {
@@ -113,14 +144,23 @@ public class PreviousState {
 		toRemoveEnemy = new ArrayList<Integer>();
 	}
 	
-	public void addFootman(int footmanId, int footmanHP) {
-		this.footmanIds.add(footmanId);
-		this.footmanHP.put(footmanId, footmanHP);
+	
+	//shouldn't need to add units
+//	public void addFootman(int footmanId, int footmanHP) {
+//		this.footmanIds.add(footmanId);
+//		this.footmanHP.put(footmanId, footmanHP);
+//	}
+//	
+//	public void addEnemy(int enemyId, int enemyHP) {
+//		this.footmanIds.add(enemyId);
+//		this.footmanHP.put(enemyId, enemyHP);
+//	}
+
+	public void setState(StateView state) {
+		this.state = state;
 	}
 	
-	public void addEnemy(int enemyId, int enemyHP) {
-		this.footmanIds.add(enemyId);
-		this.footmanHP.put(enemyId, enemyHP);
+	public StateView getState() {
+		return state;
 	}
-
 }

@@ -42,6 +42,10 @@ public class RLAgent extends Agent {
 	private static final long serialVersionUID = -4047208702628325380L;
 	private static final Logger logger = Logger.getLogger(RLAgent.class.getCanonicalName());
 
+	private static final double DISCOUNTING_FACTOR = 0.9;
+	private static final double LEARNING_RATE = 0.0001;
+	private static final int NUMBER_OF_FEATURES = 5;
+	
 	StateView currentState;
 	private int step;
 	
@@ -49,9 +53,13 @@ public class RLAgent extends Agent {
 	private ArrayList<Integer> footmanIds;
 	private ArrayList<Integer> enemyIds;
 	
+	private double weights[];
+	
 	
 	public RLAgent(int playernum, String[] arguments) {
 		super(playernum);
+		
+		weights = new double[NUMBER_OF_FEATURES];
 	}
 
 	
@@ -80,7 +88,7 @@ public class RLAgent extends Agent {
 			enemyHP.put(id, unit.getHP());
 		}
 		
-		prevState = new PreviousState(footmanIds, friendHP, enemyIds, enemyHP);
+		prevState = new PreviousState(footmanIds, friendHP, null, enemyIds, enemyHP, currentState); //TODO null for first attack?
 		
 		return middleStep(newState, statehistory);
 	}
@@ -97,9 +105,29 @@ public class RLAgent extends Agent {
 		//TODO make sure that when someone dies, the ids get updated
 		
 		//ANALYZE PHASE
-		double reward = calculateRewardValue();
-
-		updateQFunction(reward);
+		for(int id : prevState.getFootmanIds()) {
+			double reward = 0.0;
+			//TODO calculate rewards for each footman
+			if(!currentState.getAllUnitIds().contains(id)) {
+				reward -= 100; //footman died
+				prevState.markFootmanForRemoval(id);
+			} else {
+				reward -= prevState.getFootmanHP(id) - currentState.getUnit(id).getHP(); //footman was injured
+				prevState.setFootmanHP(id, currentState.getUnit(id).getHP());
+			}
+			int enemyId = prevState.getFootmanAttack(id);
+			if(!currentState.getAllUnitIds().contains(enemyId)) {
+				reward += 100; //enemy footman died
+				prevState.markEnemyForRemoval(enemyId);
+			} else {
+				reward += prevState.getEnemyHP(enemyId) - currentState.getUnit(enemyId).getHP(); //enemy was injured
+			}
+			reward -= 0.1;
+			updateQFunction(reward, id);
+		}
+		prevState.removeMarkedEnemy();
+		prevState.removeMarkedFootman();
+		updateEnemyHPs();
 		
 		//DECIDE PHASE
 		
@@ -120,75 +148,70 @@ public class RLAgent extends Agent {
 		}
 	}
 	
-	public double calculateRewardValue() {
-		double reward = 0;
-		
-		for(int id : prevState.getEnemyIds()) {
-			if(!currentState.getAllUnitIds().contains(id)) {
-				//killed an enemy
-				reward += 100;
-				prevState.markEnemyForRemoval(id);
-			} else {
-				//injured an enemy
-				reward += prevState.getEnemyHP(id) - currentState.getUnit(id).getHP();
-				prevState.setEnemyHP(id, currentState.getUnit(id).getHP());
+//	public double calculateRewardValue() {
+//		double reward = 0;
+//		
+//		for(int id : prevState.getEnemyIds()) {
+//			if(!currentState.getAllUnitIds().contains(id)) {
+//				//killed an enemy
+//				reward += 100;
+//				prevState.markEnemyForRemoval(id);
+//			} else {
+//				//injured an enemy
+//				reward += prevState.getEnemyHP(id) - currentState.getUnit(id).getHP();
+//				prevState.setEnemyHP(id, currentState.getUnit(id).getHP());
+//			}
+//		}
+//		
+//		for(int id : prevState.getFootmanIds()) {
+//			if(!currentState.getAllUnitIds().contains(id)) {
+//				//got killed
+//				reward -= 100;
+//				prevState.markFootmanForRemoval(id);
+//			} else {
+//				//got injured
+//				reward -= prevState.getEnemyHP(id) - currentState.getUnit(id).getHP();
+//				prevState.setFootmanHP(id, currentState.getUnit(id).getHP());
+//			}
+//			//subtract 0.1 for each action taken
+//			reward -= 0.1;
+//		}
+//		
+//		prevState.removeMarkedEnemy();
+//		prevState.removeMarkedFootman();
+//		
+//		return reward;
+//	}
+	
+	private void updateEnemyHPs() {
+		for(int enemy : prevState.getEnemyIds()) {
+			int currentHP = currentState.getUnit(enemy).getHP();
+			if(currentHP < prevState.getEnemyHP(enemy)) {
+				prevState.setEnemyHP(enemy, currentHP);
 			}
 		}
-		
-		for(int id : prevState.getFootmanIds()) {
-			if(!currentState.getAllUnitIds().contains(id)) {
-				//got killed
-				reward -= 100;
-				prevState.markFootmanForRemoval(id);
-			} else {
-				//got injured
-				reward -= prevState.getEnemyHP(id) - currentState.getUnit(id).getHP();
-				prevState.setFootmanHP(id, currentState.getUnit(id).getHP());
-			}
-			//subtract 0.1 for each action taken
-			reward -= 0.1;
-		}
-		
-		prevState.removeMarkedEnemy();
-		prevState.removeMarkedFootman();
-		
-		return reward;
 	}
 
-	private void updateQFunction() {
-		double reward = 0;
-		
-		for(int id : prevState.getEnemyIds()) {
-			if(!currentState.getAllUnitIds().contains(id)) {
-				//killed an enemy
-				reward += 100;
-				prevState.markEnemyForRemoval(id);
-			} else {
-				//injured an enemy
-				reward += prevState.getEnemyHP(id) - currentState.getUnit(id).getHP();
-				prevState.setEnemyHP(id, currentState.getUnit(id).getHP());
+	private void updateQFunction(double reward, int footmanId) {
+		double previousQ = calculateQFunction(prevState.getState(), footmanId); //TODO fix state stuff... just want the previous state
+		double maxQ = -99999;
+		for(int enemy : enemyIds) {
+			//TODO edit currentState so that footman is attacking that enemy
+			double currentQ = calculateQFunction(currentState, footmanId);
+			if(currentQ > maxQ) {
+				maxQ = currentQ;
 			}
 		}
-		
-		for(int id : prevState.getFootmanIds()) {
-			if(!currentState.getAllUnitIds().contains(id)) {
-				//got killed
-				reward -= 100;
-				prevState.markFootmanForRemoval(id);
-			} else {
-				//got injured
-				reward -= prevState.getEnemyHP(id) - currentState.getUnit(id).getHP();
-				prevState.setFootmanHP(id, currentState.getUnit(id).getHP());
-			}
-			//subtract 0.1 for each action taken
-			reward -= 0.1;
+		double updateFactor = reward + DISCOUNTING_FACTOR * maxQ - previousQ;
+		for(int i = 0; i < weights.length; i++) {
+			weights[i] = weights[i] + LEARNING_RATE * updateFactor; //*feature[i];
 		}
 	}
 	
 	private static double calculateQFunction(StateView state, int footmanId) {
 		double qValue = 0;
 		
-		//TODO calculate qValue += (feature[i])(weight[i]);
+		//TODO calculate qValue += (feature[i])(weights[i]);
 		
 		return qValue;
 	}
