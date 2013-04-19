@@ -69,6 +69,7 @@ public class RLAgent extends Agent {
 			footmanIds.add(id);
 			friendHP.put(id, unit.getHP());
 		}
+		
 		List<Integer> enemyUnitIds = currentState.getUnitIds(1);
 		HashMap<Integer, Integer> enemyHP = new HashMap<Integer, Integer>();
 		enemyIds = new ArrayList<Integer>();
@@ -93,8 +94,12 @@ public class RLAgent extends Agent {
 		}
 		Map<Integer, Action> builder = new HashMap<Integer, Action>();
 		
-		//ANALYZE PHASE
+		//TODO make sure that when someone dies, the ids get updated
 		
+		//ANALYZE PHASE
+		double reward = calculateRewardValue();
+
+		updateQFunction(reward);
 		
 		//DECIDE PHASE
 		
@@ -114,15 +119,87 @@ public class RLAgent extends Agent {
 			logger.fine("Congratulations! You have finished the task!");
 		}
 	}
+	
+	public double calculateRewardValue() {
+		double reward = 0;
+		
+		for(int id : prevState.getEnemyIds()) {
+			if(!currentState.getAllUnitIds().contains(id)) {
+				//killed an enemy
+				reward += 100;
+				prevState.markEnemyForRemoval(id);
+			} else {
+				//injured an enemy
+				reward += prevState.getEnemyHP(id) - currentState.getUnit(id).getHP();
+				prevState.setEnemyHP(id, currentState.getUnit(id).getHP());
+			}
+		}
+		
+		for(int id : prevState.getFootmanIds()) {
+			if(!currentState.getAllUnitIds().contains(id)) {
+				//got killed
+				reward -= 100;
+				prevState.markFootmanForRemoval(id);
+			} else {
+				//got injured
+				reward -= prevState.getEnemyHP(id) - currentState.getUnit(id).getHP();
+				prevState.setFootmanHP(id, currentState.getUnit(id).getHP());
+			}
+			//subtract 0.1 for each action taken
+			reward -= 0.1;
+		}
+		
+		prevState.removeMarkedEnemy();
+		prevState.removeMarkedFootman();
+		
+		return reward;
+	}
 
+	private void updateQFunction() {
+		double reward = 0;
+		
+		for(int id : prevState.getEnemyIds()) {
+			if(!currentState.getAllUnitIds().contains(id)) {
+				//killed an enemy
+				reward += 100;
+				prevState.markEnemyForRemoval(id);
+			} else {
+				//injured an enemy
+				reward += prevState.getEnemyHP(id) - currentState.getUnit(id).getHP();
+				prevState.setEnemyHP(id, currentState.getUnit(id).getHP());
+			}
+		}
+		
+		for(int id : prevState.getFootmanIds()) {
+			if(!currentState.getAllUnitIds().contains(id)) {
+				//got killed
+				reward -= 100;
+				prevState.markFootmanForRemoval(id);
+			} else {
+				//got injured
+				reward -= prevState.getEnemyHP(id) - currentState.getUnit(id).getHP();
+				prevState.setFootmanHP(id, currentState.getUnit(id).getHP());
+			}
+			//subtract 0.1 for each action taken
+			reward -= 0.1;
+		}
+	}
+	
+	private static double calculateQFunction(StateView state, int footmanId) {
+		double qValue = 0;
+		
+		//TODO calculate qValue += (feature[i])(weight[i]);
+		
+		return qValue;
+	}
+	
 	/**
 	 * @param footmanId - id of attacker
-	 * @return enemy's target id
+	 * @return target's id
 	 */
 	private int findNextTarget(int footmanId) {
 		//incorporate a global or previous state parameter
 		//that keeps track of which footmen are going to be attacking who
-		
 		
 		//this will be called in loop of middleStep DECIDE PHASE
 		return 0;

@@ -1,19 +1,22 @@
-import java.awt.Point;
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import edu.cwru.sepia.environment.model.state.State.StateView;
 
 public class PreviousState {
 
 	private ArrayList<Integer> footmanIds = new ArrayList<Integer>();
 	private HashMap<Integer, Integer> footmanHP = new HashMap<Integer, Integer>();
+	private ArrayList<Integer> toRemoveFootman = new ArrayList<Integer>();
+	
 	private ArrayList<Integer> enemyIds = new ArrayList<Integer>();
 	private HashMap<Integer, Integer> enemyHP = new HashMap<Integer, Integer>();
-	private ArrayList<Integer> toRemoveFootman = new ArrayList<Integer>();
 	private ArrayList<Integer> toRemoveEnemy = new ArrayList<Integer>();
-
+	
+	private StateView state;
 	
 	public PreviousState(ArrayList<Integer> footmanIds, HashMap<Integer, Integer> footmanHP,
-			ArrayList<Integer> enemyIds, HashMap<Integer, Integer> enemyHP) {
+			ArrayList<Integer> enemyIds, HashMap<Integer, Integer> enemyHP, StateView state) {
 		for(Integer id : footmanIds) {
 			this.footmanIds.add(id);
 			this.footmanHP.put(id, footmanHP.get(id));
@@ -22,6 +25,8 @@ public class PreviousState {
 			this.enemyIds.add(id);
 			this.enemyHP.put(id, enemyHP.get(id));
 		}
+		
+		this.state = state;
 	}
 	
 	/**
