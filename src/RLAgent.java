@@ -18,6 +18,7 @@
     along with SEPIA.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import java.awt.Point;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -28,6 +29,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import edu.cwru.sepia.action.Action;
+import edu.cwru.sepia.action.ActionType;
+import edu.cwru.sepia.action.TargetedAction;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.environment.model.history.History;
 import edu.cwru.sepia.environment.model.state.State.StateView;
@@ -44,7 +47,8 @@ public class RLAgent extends Agent {
 
 	private static final double DISCOUNTING_FACTOR = 0.9;
 	private static final double LEARNING_RATE = 0.0001;
-	private static final int NUMBER_OF_FEATURES = 5;
+	private static final int NUMBER_OF_FEATURES = 4;
+	private static final double EPSILON = 0.02;
 	
 	StateView currentState;
 	private int step;
@@ -60,6 +64,9 @@ public class RLAgent extends Agent {
 		super(playernum);
 		
 		weights = new double[NUMBER_OF_FEATURES];
+		for(int i = 0; i < weights.length; i++) {
+			weights[i] = Math.random() * 2 - 1;
+		}
 	}
 
 	
@@ -88,7 +95,27 @@ public class RLAgent extends Agent {
 			enemyHP.put(id, unit.getHP());
 		}
 		
-		prevState = new PreviousState(footmanIds, friendHP, null, enemyIds, enemyHP, currentState); //TODO null for first attack?
+		HashMap<Integer, Integer> targets = new HashMap<Integer, Integer>();
+		for(int footId : footmanIds) {
+			double rndm = Math.random();
+			int targetId = -1;
+			if(rndm > 1 - EPSILON) {
+				targetId = enemyIds.get((int)(Math.random() * enemyIds.size()));
+			} else {
+				double maxQValue = -99999;
+				for(int enemyId : enemyIds) {
+					double qValue = calculateQFunction(currentState, footId);
+					if(qValue > maxQValue) {
+						maxQValue = qValue;
+						targetId = enemyId;
+					}
+				}
+			}
+			targets.put(footId, targetId);
+			//TODO update prevState with the attack targets
+		}
+		
+		prevState = new PreviousState(footmanIds, friendHP, targets, enemyIds, enemyHP, currentState); //TODO null for first attack?
 		
 		return middleStep(newState, statehistory);
 	}
@@ -115,6 +142,7 @@ public class RLAgent extends Agent {
 				reward -= prevState.getFootmanHP(id) - currentState.getUnit(id).getHP(); //footman was injured
 				prevState.setFootmanHP(id, currentState.getUnit(id).getHP());
 			}
+			
 			int enemyId = prevState.getFootmanAttack(id);
 			if(!currentState.getAllUnitIds().contains(enemyId)) {
 				reward += 100; //enemy footman died
@@ -130,7 +158,25 @@ public class RLAgent extends Agent {
 		updateEnemyHPs();
 		
 		//DECIDE PHASE
-		
+		for(int footId : footmanIds) {
+			double rndm = Math.random();
+			int targetId = -1;
+			if(rndm > 1 - EPSILON) {
+				targetId = enemyIds.get((int)(Math.random() * enemyIds.size()));
+			} else {
+				double maxQValue = -99999;
+				for(int enemyId : enemyIds) {
+					double qValue = calculateQFunction(currentState, footId);
+					if(qValue > maxQValue) {
+						maxQValue = qValue;
+						targetId = enemyId;
+					}
+				}
+			}
+			//TODO update prevState with the attack targets
+			Action b = new TargetedAction(footId, ActionType.COMPOUNDATTACK, targetId);
+			builder.put(footId, b);
+		}
 		
 		//EXECUTE PHASE
 		return builder;
@@ -193,7 +239,21 @@ public class RLAgent extends Agent {
 	}
 
 	private void updateQFunction(double reward, int footmanId) {
-		double previousQ = calculateQFunction(prevState.getState(), footmanId); //TODO fix state stuff... just want the previous state
+//		int enemyX = currentState.getUnit(prevState.getFootmanAttack(footmanId)).getXPosition();
+//		int enemyY = currentState.getUnit(prevState.getFootmanAttack(footmanId)).getYPosition();
+//		Point enemyLoc = new Point(enemyX, enemyY);
+		Integer footmanTarget = prevState.getFootmanAttack(footmanId);
+		Point enemyLoc = prevState.getEnemyLoc(footmanTarget);
+		int enemyHP = prevState.getEnemyHP(footmanTarget);
+		int numAttackers = prevState.getNumAttackers(footmanTarget);
+		
+//		int footX = currentState.getUnit(footmanId).getXPosition();
+//		int footY = currentState.getUnit(footmanId).getYPosition();
+//		Point footLoc = new Point(footX, footY);
+		Point footLoc = prevState.getFootmanLoc(footmanId);
+		int footHP = prevState.getFootmanHP(footmanId);
+		
+		double previousQ = calculateQFunction(footmanId, enemyLoc, footLoc, enemyHP, footHP, numAttackers); //TODO fix state stuff... just want the previous state
 		double maxQ = -99999;
 		for(int enemy : enemyIds) {
 			//TODO edit currentState so that footman is attacking that enemy
@@ -208,14 +268,32 @@ public class RLAgent extends Agent {
 		}
 	}
 	
-	private static double calculateQFunction(StateView state, int footmanId) {
+	/**
+	 * 
+	 * @param footmanId
+	 * @param enemyLoc
+	 * @param footLoc
+	 * @param enemyHP
+	 * @param footHP
+	 * @param numAttackers
+	 * @return
+	 */
+	private double calculateQFunction(int footmanId, Point enemyLoc, Point footLoc, int enemyHP, int footHP, int numAttackers) {
 		double qValue = 0;
 		
-		//TODO calculate qValue += (feature[i])(weights[i]);
+		qValue += chebychevDist(enemyLoc, footLoc) * weights[0];
+		qValue += enemyHP * weights[1];
+		qValue += footHP * weights[2];
+		qValue += numAttackers * weights[3];
 		
 		return qValue;
 	}
 	
+	private static int chebychevDist(Point enemyLoc, Point footLoc) {
+		return Math.max(Math.abs(enemyLoc.x - footLoc.x), Math.abs(enemyLoc.y - footLoc.y));
+	}
+
+
 	/**
 	 * @param footmanId - id of attacker
 	 * @return target's id

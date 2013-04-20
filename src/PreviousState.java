@@ -1,34 +1,46 @@
+import java.awt.Point;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import edu.cwru.sepia.environment.model.state.State;
 import edu.cwru.sepia.environment.model.state.State.StateView;
 
 public class PreviousState {
 
 	private ArrayList<Integer> footmanIds = new ArrayList<Integer>();
 	private HashMap<Integer, Integer> footmanHP = new HashMap<Integer, Integer>();
+	private HashMap<Integer, Point> footmanLocs = new HashMap<Integer, Point>();
 	private HashMap<Integer, Integer> footmanAttack = new HashMap<Integer, Integer>();
 	private ArrayList<Integer> toRemoveFootman = new ArrayList<Integer>();
 	
 	private ArrayList<Integer> enemyIds = new ArrayList<Integer>();
 	private HashMap<Integer, Integer> enemyHP = new HashMap<Integer, Integer>();
+	private HashMap<Integer, Point> enemyLocs = new HashMap<Integer, Point>();
 	private ArrayList<Integer> toRemoveEnemy = new ArrayList<Integer>();
 	
-	private StateView state;
+	private State state;
 	
-	public PreviousState(ArrayList<Integer> footmanIds, HashMap<Integer, Integer> footmanHP, HashMap<Integer, Integer> footmanAttack,
+	public PreviousState(ArrayList<Integer> footmanIds, HashMap<Integer, Integer> footmanHP, HashMap<Integer, Point> enemyLocs,
+			HashMap<Integer, Point> footmanLocs, HashMap<Integer, Integer> footmanAttack,
 			ArrayList<Integer> enemyIds, HashMap<Integer, Integer> enemyHP, StateView state) {
 		for(Integer id : footmanIds) {
 			this.footmanIds.add(id);
 			this.footmanHP.put(id, footmanHP.get(id));
+			this.footmanLocs.put(id, footmanLocs.get(id));
 			this.footmanAttack.put(id, footmanAttack.get(id));
 		}
 		for(Integer id : enemyIds) {
 			this.enemyIds.add(id);
 			this.enemyHP.put(id, enemyHP.get(id));
+			this.enemyLocs.put(id, enemyLocs.get(id));
 		}
 		
-		this.state = state;
+		try {
+			this.state = state.getStateCreator().createState();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	/**
@@ -157,10 +169,32 @@ public class PreviousState {
 //	}
 
 	public void setState(StateView state) {
-		this.state = state;
+		try {
+			this.state = state.getStateCreator().createState();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public StateView getState() {
-		return state;
+		return state.getView(0);
+	}
+	
+	public Point getEnemyLoc(int id) {
+		return enemyLocs.get(id);
+	}
+	
+	public Point getFootmanLoc(int id) {
+		return footmanLocs.get(id);
+	}
+	
+	public int getNumAttackers(int enemyId) {
+		int numAttackers = 0;
+		for(int id : footmanAttack.values()) {
+			if(id == enemyId) {
+				numAttackers++;
+			}
+		}
+		return numAttackers;
 	}
 }
