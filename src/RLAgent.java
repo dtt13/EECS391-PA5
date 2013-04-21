@@ -49,6 +49,8 @@ public class RLAgent extends Agent {
 	private static final double LEARNING_RATE = 0.0001;
 	private static final int NUMBER_OF_FEATURES = 4;
 	private static final double EPSILON = 0.02;
+	private static int targetEpisodes;
+	private static int numEpisodes;
 	
 	StateView currentState;
 	private int step;
@@ -58,10 +60,14 @@ public class RLAgent extends Agent {
 	private ArrayList<Integer> enemyIds;
 	
 	private double weights[];
+	private boolean firstStep;
 	
 	
 	public RLAgent(int playernum, String[] arguments) {
 		super(playernum);
+		
+		targetEpisodes = Integer.parseInt(arguments[0]);
+		numEpisodes = 0;
 		
 		weights = new double[NUMBER_OF_FEATURES];
 		for(int i = 0; i < weights.length; i++) {
@@ -127,11 +133,10 @@ public class RLAgent extends Agent {
 				}
 			}
 			targets.put(footId, targetId);
-			//TODO add actions to builder?
+			firstStep = true;
 		}
 		
-		prevState = new PreviousState(footmanIds, friendHP, friendLocs, targets,
-				enemyIds, enemyHP, enemyLocs);
+		prevState = new PreviousState(footmanIds, friendHP, friendLocs, targets, enemyIds, enemyHP, enemyLocs);
 		
 		return middleStep(newState, statehistory);
 	}
@@ -145,27 +150,78 @@ public class RLAgent extends Agent {
 		}
 		Map<Integer, Action> builder = new HashMap<Integer, Action>();
 		
-		//TODO base condition if nothing eventful has happened
+		printWeights();
+		
+		if(firstStep) {
+			firstStep = false;
+			for(int footId : footmanIds) {
+				int targetId = prevState.getFootmanAttack(footId);
+				Action b = new TargetedAction(footId, ActionType.COMPOUNDATTACK, targetId);
+				builder.put(footId, b);
+			}
+			return builder;
+		}
+		
+		List<Integer> friendUnitIds = currentState.getUnitIds(0);
+		footmanIds = new ArrayList<Integer>();
+		for(int i = 0; i < friendUnitIds.size(); i++) {
+			int id = friendUnitIds.get(i);
+			footmanIds.add(id);
+		}
+		
+		//enemy info
+		List<Integer> enemyUnitIds = currentState.getUnitIds(1);
+		enemyIds = new ArrayList<Integer>();
+		for(int i = 0; i < enemyUnitIds.size(); i++) {
+			int id = enemyUnitIds.get(i);
+			enemyIds.add(id);
+		}
+		
+		boolean noInjuries = true;
+		for(int id : prevState.getFootmanIds()) {
+			if(!currentState.getAllUnitIds().contains(id)
+					|| prevState.getFootmanHP(id) != currentState.getUnit(id).getHP()) {
+				noInjuries = false;
+				break;
+			}
+			
+			int enemyId = prevState.getFootmanAttack(id);
+			if(!currentState.getAllUnitIds().contains(enemyId)
+					|| prevState.getEnemyHP(enemyId) != currentState.getUnit(enemyId).getHP()) {
+				noInjuries = false;
+				break;
+			}
+		}
+		
+		if(noInjuries) {
+			return builder;
+		}
 		
 		//ANALYZE PHASE
 		for(int id : prevState.getFootmanIds()) {
 			double reward = 0.0;
 			if(!currentState.getAllUnitIds().contains(id)) {
-				reward -= 100; //footman died
+				//footman died
+				reward -= 100;
 				prevState.markFootmanForRemoval(id);
 			} else {
-				reward -= prevState.getFootmanHP(id) - currentState.getUnit(id).getHP(); //footman was injured
+				//footman was injured
+				reward -= prevState.getFootmanHP(id) - currentState.getUnit(id).getHP();
 			}
 			
 			int enemyId = prevState.getFootmanAttack(id);
 			if(!currentState.getAllUnitIds().contains(enemyId)) {
-				reward += 100; //enemy footman died
+				//enemy footman died
+				reward += 100;
 				prevState.markEnemyForRemoval(enemyId);
 			} else {
-				reward += prevState.getEnemyHP(enemyId) - currentState.getUnit(enemyId).getHP(); //enemy was injured
+				//enemy was injured
+				reward += prevState.getEnemyHP(enemyId) - currentState.getUnit(enemyId).getHP();
 			}
 			reward -= 0.1;
-			updateQFunction(reward, id);
+			if(numEpisodes % 10 < 5) {
+				updateQFunction(reward, id);
+			}
 		}
 		updateStatusInfo();
 		
@@ -208,7 +264,15 @@ public class RLAgent extends Agent {
 		if(logger.isLoggable(Level.FINE)) {
 			logger.fine("=> Step: " + step);
 		}
-
+		
+		numEpisodes++;
+		
+//		int numEnemies = enemyIds.size();
+//		int numFriendlies = footmanIds.size();
+//		System.out.println("Enemies: " + numEnemies);
+//		System.out.println("Friendlies: " + numFriendlies);
+//		System.out.println();
+		
 		if(logger.isLoggable(Level.FINE)) {
 			logger.fine("Congratulations! You have finished the task!");
 		}
@@ -251,7 +315,7 @@ public class RLAgent extends Agent {
 	 */
 	private void updateQFunction(double reward, int footmanId) {
 		//calculate previous Q function
-		Integer footmanTarget = prevState.getFootmanAttack(footmanId);
+		int footmanTarget = prevState.getFootmanAttack(footmanId);
 		Point prevEnemyLoc = prevState.getEnemyLoc(footmanTarget);
 		int prevEnemyHP = prevState.getEnemyHP(footmanTarget);
 		
@@ -264,8 +328,24 @@ public class RLAgent extends Agent {
 
 		//calculate current Q function
 		UnitView friendUnit = currentState.getUnit(footmanId);
-		Point newFriendLoc = new Point(friendUnit.getXPosition(),friendUnit.getYPosition());
-		int newFriendHP = friendUnit.getHP();
+		Point newFriendLoc;
+		int newFriendHP;
+		if(friendUnit != null) {
+			newFriendHP = friendUnit.getHP();
+			newFriendLoc = new Point(friendUnit.getXPosition(),friendUnit.getYPosition());
+		} else {
+//			for(int enemyId : enemyIds) {
+//				UnitView enemy = currentState.getUnit(enemyId);
+//				//TODO check if this actually is COMPOUNDATTACK
+//				if(enemy.getCurrentDurativeAction().getClass().toString().equals("COMPOUNDATTACK")) {
+////					(ActionType.COMPOUNDATTACK)(enemy.getCurrentDurativeAction()).
+//				}
+//			}
+			//TODO maybe find a more accurate way to do this
+			newFriendHP = 0;
+			Point footmanLoc = prevState.getFootmanLoc(footmanId);
+			newFriendLoc = new Point(footmanLoc.x, footmanLoc.y);
+		}
 		
 		double maxQ = -99999;
 		Point maxLoc = null;
@@ -317,6 +397,14 @@ public class RLAgent extends Agent {
 	
 	private int chebychevDist(Point enemyLoc, Point footLoc) {
 		return Math.max(Math.abs(enemyLoc.x - footLoc.x), Math.abs(enemyLoc.y - footLoc.y));
+	}
+	
+	public void printWeights() {
+//		for(int i = 0; i < weights.length; i++) {
+//			System.out.println(i + " " +  weights[i]);
+//		}
+//		System.out.println();
+//		System.out.println();
 	}
 
 	@Override
