@@ -1,10 +1,6 @@
 import java.awt.Point;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-
-import edu.cwru.sepia.environment.model.state.State;
-import edu.cwru.sepia.environment.model.state.State.StateView;
 
 public class PreviousState {
 
@@ -19,11 +15,9 @@ public class PreviousState {
 	private HashMap<Integer, Point> enemyLocs = new HashMap<Integer, Point>();
 	private ArrayList<Integer> toRemoveEnemy = new ArrayList<Integer>();
 	
-	private State state;
-	
-	public PreviousState(ArrayList<Integer> footmanIds, HashMap<Integer, Integer> footmanHP, HashMap<Integer, Point> enemyLocs,
+	public PreviousState(ArrayList<Integer> footmanIds, HashMap<Integer, Integer> footmanHP,
 			HashMap<Integer, Point> footmanLocs, HashMap<Integer, Integer> footmanAttack,
-			ArrayList<Integer> enemyIds, HashMap<Integer, Integer> enemyHP, StateView state) {
+			ArrayList<Integer> enemyIds, HashMap<Integer, Integer> enemyHP, HashMap<Integer, Point> enemyLocs) {
 		for(Integer id : footmanIds) {
 			this.footmanIds.add(id);
 			this.footmanHP.put(id, footmanHP.get(id));
@@ -34,12 +28,6 @@ public class PreviousState {
 			this.enemyIds.add(id);
 			this.enemyHP.put(id, enemyHP.get(id));
 			this.enemyLocs.put(id, enemyLocs.get(id));
-		}
-		
-		try {
-			this.state = state.getStateCreator().createState();
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -156,36 +144,22 @@ public class PreviousState {
 		toRemoveEnemy = new ArrayList<Integer>();
 	}
 	
-	
-	//shouldn't need to add units
-//	public void addFootman(int footmanId, int footmanHP) {
-//		this.footmanIds.add(footmanId);
-//		this.footmanHP.put(footmanId, footmanHP);
-//	}
-//	
-//	public void addEnemy(int enemyId, int enemyHP) {
-//		this.footmanIds.add(enemyId);
-//		this.footmanHP.put(enemyId, enemyHP);
-//	}
-
-	public void setState(StateView state) {
-		try {
-			this.state = state.getStateCreator().createState();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	public StateView getState() {
-		return state.getView(0);
-	}
-	
 	public Point getEnemyLoc(int id) {
 		return enemyLocs.get(id);
 	}
 	
+	public void setEnemyLoc(int id, Point location) {
+		enemyLocs.remove(id);
+		enemyLocs.put(id, location);
+	}
+	
 	public Point getFootmanLoc(int id) {
 		return footmanLocs.get(id);
+	}
+	
+	public void setFootmanLoc(int id, Point location) {
+		footmanLocs.remove(id);
+		footmanLocs.put(id, location);
 	}
 	
 	public int getNumAttackers(int enemyId) {
