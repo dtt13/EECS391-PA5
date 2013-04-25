@@ -400,11 +400,11 @@ public class RLAgent extends Agent {
 	}
 	
 	public void printWeights() {
-//		for(int i = 0; i < weights.length; i++) {
-//			System.out.println(i + " " +  weights[i]);
-//		}
-//		System.out.println();
-//		System.out.println();
+		for(int i = 0; i < weights.length; i++) {
+			System.out.println(i + " " +  weights[i]);
+		}
+		System.out.println();
+		System.out.println();
 	}
 
 	@Override

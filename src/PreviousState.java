@@ -122,6 +122,9 @@ public class PreviousState {
 			if(footmanAttack.containsKey(id)) {
 				footmanAttack.remove(id);
 			}
+			if(footmanLocs.containsKey(id)) {
+				footmanLocs.remove(id);
+			}
 		}
 		toRemoveFootman = new ArrayList<Integer>();
 	}
@@ -139,6 +142,9 @@ public class PreviousState {
 			}
 			if(enemyHP.containsKey(id)) {
 				enemyHP.remove(id);
+			}
+			if(enemyLocs.containsKey(id)) {
+				enemyLocs.remove(id);
 			}
 		}
 		toRemoveEnemy = new ArrayList<Integer>();
