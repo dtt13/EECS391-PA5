@@ -62,7 +62,6 @@ public class RLAgent extends Agent {
 	private double weights[];
 	private boolean firstStep;
 	
-	
 	public RLAgent(int playernum, String[] arguments) {
 		super(playernum);
 		
@@ -347,7 +346,7 @@ public class RLAgent extends Agent {
 			newFriendLoc = new Point(footmanLoc.x, footmanLoc.y);
 		}
 		
-		double maxQ = -99999;
+		double maxQ = -9999999;
 		Point maxLoc = null;
 		int maxHP = 0;
 		int maxNumAttackers = -1;

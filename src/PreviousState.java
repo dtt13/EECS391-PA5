@@ -37,9 +37,6 @@ public class PreviousState {
 	 * @return null if the footman doesn't exist. The footman's HP if it does exist.
 	 */
 	public Integer getFootmanHP(int id) {
-		if(!footmanHP.containsKey(id)) {
-			return null;
-		}
 		return footmanHP.get(id);
 	}
 	
@@ -49,9 +46,6 @@ public class PreviousState {
 	 * @return null if the footman doesn't exist. The id of the enemy that that footman was attacking if it does exist.
 	 */
 	public Integer getFootmanAttack(int id) {
-		if(!footmanAttack.containsKey(id)) {
-			return null;
-		}
 		return footmanAttack.get(id);
 	}
 	
@@ -61,9 +55,6 @@ public class PreviousState {
 	 * @return null if the enemy doesn't exist. The enemy's HP if it does exist.
 	 */
 	public Integer getEnemyHP(int id) {
-		if(!enemyHP.containsKey(id)) {
-			return null;
-		}
 		return enemyHP.get(id);
 	}
 	
