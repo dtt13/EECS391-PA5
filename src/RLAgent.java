@@ -229,7 +229,7 @@ public class RLAgent extends Agent {
 		for(int footId : footmanIds) {
 			double rndm = Math.random();
 			int targetId = -1;
-			if(rndm > 1 - EPSILON) {
+			if(rndm > 1 - EPSILON && numEpisodes % 10 < 5) {
 				targetId = enemyIds.get((int)(Math.random() * enemyIds.size()));
 			} else {
 				UnitView friendUnit = currentState.getUnit(footId);
@@ -390,7 +390,7 @@ public class RLAgent extends Agent {
 		qValue += chebychevDist(enemyLoc, footLoc) * weights[0];
 		qValue += enemyHP * weights[1];
 		qValue += footHP * weights[2];
-		qValue += numAttackers * weights[3];
+		//qValue += numAttackers * weights[3];
 		
 		return qValue;
 	}
