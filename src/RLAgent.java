@@ -47,7 +47,7 @@ public class RLAgent extends Agent {
 
 	private static final double DISCOUNTING_FACTOR = 0.9;
 	private static final double LEARNING_RATE = 0.0001;
-	private static final int NUMBER_OF_FEATURES = 4;
+	private static final int NUMBER_OF_FEATURES = 5;
 	private static final double EPSILON = 0.02;
 	private static int targetEpisodes;
 	private static int numEpisodes;
@@ -61,6 +61,9 @@ public class RLAgent extends Agent {
 	
 	private double weights[];
 	private boolean firstStep;
+	private double cumulativeReward;
+	private double totalCumulativeReward;
+	private ArrayList<Integer> enemyTargets;
 	
 	public RLAgent(int playernum, String[] arguments) {
 		super(playernum);
@@ -78,6 +81,7 @@ public class RLAgent extends Agent {
 	@Override
 	public Map<Integer, Action> initialStep(StateView newState, History.HistoryView statehistory) {
 		step = 0;
+		cumulativeReward = 0;
 		currentState = newState;
 		
 		//initialize previous state information
@@ -110,6 +114,7 @@ public class RLAgent extends Agent {
 		}
 		
 		//initializing targets
+		enemyTargets = new ArrayList<Integer>();
 		HashMap<Integer, Integer> targets = new HashMap<Integer, Integer>();
 		for(int footId : footmanIds) {
 			double rndm = Math.random();
@@ -117,11 +122,11 @@ public class RLAgent extends Agent {
 			if(rndm > 1 - EPSILON) {
 				targetId = enemyIds.get((int)(Math.random() * enemyIds.size()));
 			} else {
-				double maxQValue = -99999;
+				double maxQValue = Double.NEGATIVE_INFINITY;
 				Point friendLoc = friendLocs.get(footId);
 				int footHP = friendHP.get(footId);
 				for(int enemyId : enemyIds) {
-					int numAttackers = 0; //TODO how to calculate
+					int numAttackers = calculateNumAttackers(enemyId);
 					Point enemyLoc = enemyLocs.get(enemyId);
 					int foeHP = enemyHP.get(enemyId);
 					double qValue = calculateQFunction(footId, enemyLoc, friendLoc, foeHP, footHP, numAttackers);
@@ -133,6 +138,7 @@ public class RLAgent extends Agent {
 			}
 			targets.put(footId, targetId);
 			firstStep = true;
+			enemyTargets.add(targetId);
 		}
 		
 		prevState = new PreviousState(footmanIds, friendHP, friendLocs, targets, enemyIds, enemyHP, enemyLocs);
@@ -197,6 +203,7 @@ public class RLAgent extends Agent {
 		}
 		
 		//ANALYZE PHASE
+		enemyTargets = new ArrayList<Integer>();
 		for(int id : prevState.getFootmanIds()) {
 			double reward = 0.0;
 			if(!currentState.getAllUnitIds().contains(id)) {
@@ -221,10 +228,13 @@ public class RLAgent extends Agent {
 			if(numEpisodes % 10 < 5) {
 				updateQFunction(reward, id);
 			}
+			cumulativeReward += reward;
 		}
+		
 		updateStatusInfo();
 		
 		//DECIDE PHASE
+		enemyTargets = new ArrayList<Integer>();
 		for(int footId : footmanIds) {
 			double rndm = Math.random();
 			int targetId = -1;
@@ -234,9 +244,9 @@ public class RLAgent extends Agent {
 				UnitView friendUnit = currentState.getUnit(footId);
 				Point friendLoc = new Point(friendUnit.getXPosition(), friendUnit.getYPosition());
 				int friendHP = friendUnit.getHP();
-				double maxQValue = -99999;
+				double maxQValue = Double.NEGATIVE_INFINITY;
 				for(int enemyId : enemyIds) {
-					int numAttackers = 0; //TODO how to calculate
+					int numAttackers = calculateNumAttackers(enemyId);
 					UnitView enemyUnit = currentState.getUnit(enemyId);
 					Point enemyLoc = new Point(enemyUnit.getXPosition(), enemyUnit.getYPosition());
 					int enemyHP = enemyUnit.getHP();
@@ -247,6 +257,7 @@ public class RLAgent extends Agent {
 					}
 				}
 			}
+			enemyTargets.add(targetId);
 			Action b = new TargetedAction(footId, ActionType.COMPOUNDATTACK, targetId);
 			builder.put(footId, b);
 			
@@ -264,13 +275,21 @@ public class RLAgent extends Agent {
 			logger.fine("=> Step: " + step);
 		}
 		
-		numEpisodes++;
+		//evaluation phase
+		if(numEpisodes % 10 > 5) {
+			totalCumulativeReward += cumulativeReward;
+		}
+		//calculate average
+		if(numEpisodes % 10 == 9) {
+			System.out.println("Games played: " + (numEpisodes / 10) * 10);
+			System.out.println("Average reward: " + totalCumulativeReward / 5);
+		}
+		//learning phase
+		if(numEpisodes % 10 < 5) {
+			totalCumulativeReward = 0;
+		}
 		
-//		int numEnemies = enemyIds.size();
-//		int numFriendlies = footmanIds.size();
-//		System.out.println("Enemies: " + numEnemies);
-//		System.out.println("Friendlies: " + numFriendlies);
-//		System.out.println();
+		numEpisodes++;
 		
 		if(logger.isLoggable(Level.FINE)) {
 			logger.fine("Congratulations! You have finished the task!");
@@ -322,7 +341,6 @@ public class RLAgent extends Agent {
 		int prevFootHP = prevState.getFootmanHP(footmanId);
 		
 		int prevNumAttackers = prevState.getNumAttackers(footmanTarget);
-
 		double previousQ = calculateQFunction(footmanId, prevEnemyLoc, prevFootLoc, prevEnemyHP, prevFootHP, prevNumAttackers);
 
 		//calculate current Q function
@@ -335,10 +353,6 @@ public class RLAgent extends Agent {
 		} else {
 //			for(int enemyId : enemyIds) {
 //				UnitView enemy = currentState.getUnit(enemyId);
-//				//TODO check if this actually is COMPOUNDATTACK
-//				if(enemy.getCurrentDurativeAction().getClass().toString().equals("COMPOUNDATTACK")) {
-////					(ActionType.COMPOUNDATTACK)(enemy.getCurrentDurativeAction()).
-//				}
 //			}
 			//TODO maybe find a more accurate way to do this
 			newFriendHP = 0;
@@ -346,31 +360,35 @@ public class RLAgent extends Agent {
 			newFriendLoc = new Point(footmanLoc.x, footmanLoc.y);
 		}
 		
-		double maxQ = -9999999;
+		double maxQ = Double.NEGATIVE_INFINITY;
 		Point maxLoc = null;
 		int maxHP = 0;
 		int maxNumAttackers = -1;
+		int targetId = -1;
 		for(int enemyId : enemyIds) {
-			int numAttackers = 0; //TODO how to calculate
+			int numAttackers = calculateNumAttackers(enemyId);
 			UnitView enemyUnit = currentState.getUnit(enemyId);
 			Point newEnemyLoc = new Point(enemyUnit.getXPosition(), enemyUnit.getYPosition());
 			int newEnemyHP = enemyUnit.getHP();
 			double currentQ = calculateQFunction(footmanId, newEnemyLoc, newFriendLoc, newEnemyHP, newFriendHP, numAttackers);
 			if(currentQ > maxQ) {
+				targetId = enemyId;
 				maxQ = currentQ;
 				maxLoc = newEnemyLoc;
 				maxHP = newEnemyHP;
 				maxNumAttackers = numAttackers;
 			}
 		}
+		enemyTargets.add(targetId);
 		
-		//update Q function weights
+		//update Q function weights	
 		double updateFactor = reward + DISCOUNTING_FACTOR * maxQ - previousQ;
 		
-		weights[0] = weights[0] + LEARNING_RATE * updateFactor * chebychevDist(maxLoc, newFriendLoc);
-		weights[1] = weights[1] + LEARNING_RATE * updateFactor * maxHP;
-		weights[2] = weights[2] + LEARNING_RATE * updateFactor * newFriendHP;
-		weights[3] = weights[3] + LEARNING_RATE * updateFactor * maxNumAttackers;
+		weights[0] = weights[0] + LEARNING_RATE * updateFactor;
+		weights[1] = weights[1] + LEARNING_RATE * updateFactor * chebychevDist(maxLoc, newFriendLoc);
+		weights[2] = weights[2] + LEARNING_RATE * updateFactor * maxHP;
+		weights[3] = weights[3] + LEARNING_RATE * updateFactor * newFriendHP;
+		weights[4] = weights[4] + LEARNING_RATE * updateFactor * maxNumAttackers;
 	}
 	
 	/**
@@ -386,10 +404,11 @@ public class RLAgent extends Agent {
 	private double calculateQFunction(int footmanId, Point enemyLoc, Point footLoc, int enemyHP, int footHP, int numAttackers) {
 		double qValue = 0;
 		
-		qValue += chebychevDist(enemyLoc, footLoc) * weights[0];
-		qValue += enemyHP * weights[1];
-		qValue += footHP * weights[2];
-		//qValue += numAttackers * weights[3];
+		qValue += weights[0];
+		qValue += chebychevDist(enemyLoc, footLoc) * weights[1];
+		qValue += enemyHP * weights[2];
+		qValue += footHP * weights[3];
+		qValue += numAttackers * weights[4];
 		
 		return qValue;
 	}
@@ -398,12 +417,22 @@ public class RLAgent extends Agent {
 		return Math.max(Math.abs(enemyLoc.x - footLoc.x), Math.abs(enemyLoc.y - footLoc.y));
 	}
 	
-	public void printWeights() {
-		for(int i = 0; i < weights.length; i++) {
-			System.out.println(i + " " +  weights[i]);
+	private int calculateNumAttackers(int enemyId) {
+		int numAttackers = 0;
+		for(int id : enemyTargets) {
+			if(id == enemyId) {
+				numAttackers++;
+			}
 		}
-		System.out.println();
-		System.out.println();
+		return numAttackers;
+	}
+	
+	public void printWeights() {
+//		for(int i = 0; i < weights.length; i++) {
+//			System.out.println(i + " " +  weights[i]);
+//		}
+//		System.out.println();
+//		System.out.println();
 	}
 
 	@Override
