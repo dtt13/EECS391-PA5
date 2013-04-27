@@ -47,7 +47,7 @@ public class RLAgent extends Agent {
 
 	private static final double DISCOUNTING_FACTOR = 0.9;
 	private static final double LEARNING_RATE = 0.0001;
-	private static final int NUMBER_OF_FEATURES = 5;
+	private static final int NUMBER_OF_FEATURES = 8;
 	private static final double EPSILON = 0.02;
 	private static int targetEpisodes;
 	private static int numEpisodes;
@@ -83,6 +83,8 @@ public class RLAgent extends Agent {
 		step = 0;
 		cumulativeReward = 0;
 		currentState = newState;
+
+		printWeights();
 		
 		//initialize previous state information
 		//friendly info
@@ -129,7 +131,7 @@ public class RLAgent extends Agent {
 					int numAttackers = calculateNumAttackers(enemyId);
 					Point enemyLoc = enemyLocs.get(enemyId);
 					int foeHP = enemyHP.get(enemyId);
-					double qValue = calculateQFunction(footId, enemyLoc, friendLoc, foeHP, footHP, numAttackers);
+					double qValue = calculateQFunction(footId, enemyLoc, friendLoc, foeHP, footHP, numAttackers, getTotalAllyDistance(footId));
 					if(qValue > maxQValue) {
 						maxQValue = qValue;
 						targetId = enemyId;
@@ -154,8 +156,6 @@ public class RLAgent extends Agent {
 			logger.fine("=> Step: " + step);
 		}
 		Map<Integer, Action> builder = new HashMap<Integer, Action>();
-		
-		printWeights();
 		
 		if(firstStep) {
 			firstStep = false;
@@ -232,7 +232,7 @@ public class RLAgent extends Agent {
 		}
 		
 		updateStatusInfo();
-		
+		printWeights();
 		//DECIDE PHASE
 		enemyTargets = new ArrayList<Integer>();
 		for(int footId : footmanIds) {
@@ -250,7 +250,7 @@ public class RLAgent extends Agent {
 					UnitView enemyUnit = currentState.getUnit(enemyId);
 					Point enemyLoc = new Point(enemyUnit.getXPosition(), enemyUnit.getYPosition());
 					int enemyHP = enemyUnit.getHP();
-					double qValue = calculateQFunction(footId, enemyLoc, friendLoc, enemyHP, friendHP, numAttackers);
+					double qValue = calculateQFunction(footId, enemyLoc, friendLoc, enemyHP, friendHP, numAttackers, getTotalAllyDistance(footId));
 					if(qValue > maxQValue) {
 						maxQValue = qValue;
 						targetId = enemyId;
@@ -288,8 +288,13 @@ public class RLAgent extends Agent {
 		if(numEpisodes % 10 < 5) {
 			totalCumulativeReward = 0;
 		}
+
+		if(numEpisodes == targetEpisodes) {
+			System.exit(0);
+		}
 		
 		numEpisodes++;
+		
 		
 		if(logger.isLoggable(Level.FINE)) {
 			logger.fine("Congratulations! You have finished the task!");
@@ -340,8 +345,9 @@ public class RLAgent extends Agent {
 		Point prevFootLoc = prevState.getFootmanLoc(footmanId);
 		int prevFootHP = prevState.getFootmanHP(footmanId);
 		
+		int prevAllyDist = prevState.getTotalAllyDistance(footmanId);
 		int prevNumAttackers = prevState.getNumAttackers(footmanTarget);
-		double previousQ = calculateQFunction(footmanId, prevEnemyLoc, prevFootLoc, prevEnemyHP, prevFootHP, prevNumAttackers);
+		double previousQ = calculateQFunction(footmanId, prevEnemyLoc, prevFootLoc, prevEnemyHP, prevFootHP, prevNumAttackers, prevAllyDist);
 
 		//calculate current Q function
 		UnitView friendUnit = currentState.getUnit(footmanId);
@@ -370,7 +376,7 @@ public class RLAgent extends Agent {
 			UnitView enemyUnit = currentState.getUnit(enemyId);
 			Point newEnemyLoc = new Point(enemyUnit.getXPosition(), enemyUnit.getYPosition());
 			int newEnemyHP = enemyUnit.getHP();
-			double currentQ = calculateQFunction(footmanId, newEnemyLoc, newFriendLoc, newEnemyHP, newFriendHP, numAttackers);
+			double currentQ = calculateQFunction(footmanId, newEnemyLoc, newFriendLoc, newEnemyHP, newFriendHP, numAttackers, getTotalAllyDistance(footmanId));
 			if(currentQ > maxQ) {
 				targetId = enemyId;
 				maxQ = currentQ;
@@ -384,11 +390,16 @@ public class RLAgent extends Agent {
 		//update Q function weights	
 		double updateFactor = reward + DISCOUNTING_FACTOR * maxQ - previousQ;
 		
+		System.out.println("Update factor: " + updateFactor);
+		
 		weights[0] = weights[0] + LEARNING_RATE * updateFactor;
 		weights[1] = weights[1] + LEARNING_RATE * updateFactor * chebychevDist(maxLoc, newFriendLoc);
 		weights[2] = weights[2] + LEARNING_RATE * updateFactor * maxHP;
 		weights[3] = weights[3] + LEARNING_RATE * updateFactor * newFriendHP;
 		weights[4] = weights[4] + LEARNING_RATE * updateFactor * maxNumAttackers;
+		weights[5] = weights[5] + LEARNING_RATE * updateFactor * getTotalAllyDistance(footmanId);
+		weights[6] = weights[6] + LEARNING_RATE * updateFactor * newFriendLoc.x;
+		weights[7] = weights[7] + LEARNING_RATE * updateFactor * newFriendLoc.y;
 	}
 	
 	/**
@@ -401,19 +412,41 @@ public class RLAgent extends Agent {
 	 * @param numAttackers
 	 * @return
 	 */
-	private double calculateQFunction(int footmanId, Point enemyLoc, Point footLoc, int enemyHP, int footHP, int numAttackers) {
+	private double calculateQFunction(int footmanId, Point enemyLoc, Point footLoc, int enemyHP, int footHP, int numAttackers, int totalAllyDistance) {
 		double qValue = 0;
 		
 		qValue += weights[0];
-		qValue += chebychevDist(enemyLoc, footLoc) * weights[1];
-		qValue += enemyHP * weights[2];
-		qValue += footHP * weights[3];
-		qValue += numAttackers * weights[4];
+		qValue += weights[1] * chebychevDist(enemyLoc, footLoc);
+		qValue += weights[2] * enemyHP;
+		qValue += weights[3] * footHP;
+		qValue += weights[4] * numAttackers;
+		qValue += weights[5] * totalAllyDistance;
+		qValue += weights[6] * footLoc.x;
+		qValue += weights[7] * footLoc.y;
 		
 		return qValue;
 	}
 	
-	private int chebychevDist(Point enemyLoc, Point footLoc) {
+	private int getTotalAllyDistance(int unitId) {
+		int totalDist = 0;
+		UnitView currentUnit = currentState.getUnit(unitId);
+		Point currentUnitLoc;
+		if(currentUnit != null) {
+			currentUnitLoc = new Point(currentUnit.getXPosition(), currentUnit.getYPosition());
+		} else {
+			//TODO maybe find a more accurate way to do this
+			currentUnitLoc = prevState.getFootmanLoc(unitId);
+		}
+		for(int id : footmanIds) {
+			UnitView unit = currentState.getUnit(id);
+			Point otherUnit = new Point(unit.getXPosition(), unit.getYPosition());
+			totalDist += chebychevDist(otherUnit, currentUnitLoc);
+		}
+		return totalDist;
+	}
+
+
+	protected static int chebychevDist(Point enemyLoc, Point footLoc) {
 		return Math.max(Math.abs(enemyLoc.x - footLoc.x), Math.abs(enemyLoc.y - footLoc.y));
 	}
 	
@@ -428,11 +461,11 @@ public class RLAgent extends Agent {
 	}
 	
 	public void printWeights() {
-//		for(int i = 0; i < weights.length; i++) {
-//			System.out.println(i + " " +  weights[i]);
-//		}
-//		System.out.println();
-//		System.out.println();
+		for(int i = 0; i < weights.length; i++) {
+			System.out.println(i + " " +  weights[i]);
+		}
+		System.out.println();
+		System.out.println();
 	}
 
 	@Override

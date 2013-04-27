@@ -2,6 +2,8 @@ import java.awt.Point;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import edu.cwru.sepia.environment.model.state.Unit.UnitView;
+
 public class PreviousState {
 
 	private ArrayList<Integer> footmanIds = new ArrayList<Integer>();
@@ -167,5 +169,14 @@ public class PreviousState {
 			}
 		}
 		return numAttackers;
+	}
+	
+	public int getTotalAllyDistance(int currentId) {
+		int totalDist = 0;
+		Point currentUnitLoc = footmanLocs.get(currentId);
+		for(int id : footmanIds) {
+			totalDist += RLAgent.chebychevDist(getFootmanLoc(id), currentUnitLoc);
+		}
+		return totalDist;
 	}
 }
