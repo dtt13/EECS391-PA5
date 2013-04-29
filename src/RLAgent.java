@@ -45,10 +45,12 @@ public class RLAgent extends Agent {
 	private static final long serialVersionUID = -4047208702628325380L;
 	private static final Logger logger = Logger.getLogger(RLAgent.class.getCanonicalName());
 
-	private static final double DISCOUNTING_FACTOR = 0.9;
+	//TODO changed the DISCOUNTING_FACTOR from .9 to .7
+	//TODO changed the EPSILON from .02 to .01
+	private static final double DISCOUNTING_FACTOR = 0.7;
 	private static final double LEARNING_RATE = 0.0001;
-	private static final int NUMBER_OF_FEATURES = 8;
-	private static final double EPSILON = 0.02;
+	private static final int NUMBER_OF_FEATURES = 7;
+	private static final double EPSILON = 0.01;
 	private static int targetEpisodes;
 	private static int numEpisodes;
 	
@@ -357,10 +359,6 @@ public class RLAgent extends Agent {
 			newFriendHP = friendUnit.getHP();
 			newFriendLoc = new Point(friendUnit.getXPosition(),friendUnit.getYPosition());
 		} else {
-//			for(int enemyId : enemyIds) {
-//				UnitView enemy = currentState.getUnit(enemyId);
-//			}
-			//TODO maybe find a more accurate way to do this
 			newFriendHP = 0;
 			Point footmanLoc = prevState.getFootmanLoc(footmanId);
 			newFriendLoc = new Point(footmanLoc.x, footmanLoc.y);
@@ -390,18 +388,31 @@ public class RLAgent extends Agent {
 		//update Q function weights	
 		double updateFactor = reward + DISCOUNTING_FACTOR * maxQ - previousQ;
 		
-		System.out.println("Update factor: " + updateFactor);
+//		System.out.println("Update factor: " + updateFactor);
 		
 		weights[0] = weights[0] + LEARNING_RATE * updateFactor;
 		weights[1] = weights[1] + LEARNING_RATE * updateFactor * chebychevDist(maxLoc, newFriendLoc);
 		weights[2] = weights[2] + LEARNING_RATE * updateFactor * maxHP;
 		weights[3] = weights[3] + LEARNING_RATE * updateFactor * newFriendHP;
 		weights[4] = weights[4] + LEARNING_RATE * updateFactor * maxNumAttackers;
-		weights[5] = weights[5] + LEARNING_RATE * updateFactor * getTotalAllyDistance(footmanId);
-		weights[6] = weights[6] + LEARNING_RATE * updateFactor * newFriendLoc.x;
-		weights[7] = weights[7] + LEARNING_RATE * updateFactor * newFriendLoc.y;
+		weights[6] = weights[5] + LEARNING_RATE * updateFactor * newFriendLoc.x;
+		weights[7] = weights[6] + LEARNING_RATE * updateFactor * newFriendLoc.y;
+		
+		normalizeWeights();
 	}
 	
+	private void normalizeWeights() {
+		double totalWeight = 0;
+		for(int i = 0; i < weights.length; i++) {
+			totalWeight += weights[i] * weights[i];
+		}
+		totalWeight = Math.sqrt(totalWeight);
+		for(int i = 0; i < weights.length; i++) {
+			weights[i] /= totalWeight;
+		}
+	}
+
+
 	/**
 	 * 
 	 * @param footmanId
@@ -420,9 +431,8 @@ public class RLAgent extends Agent {
 		qValue += weights[2] * enemyHP;
 		qValue += weights[3] * footHP;
 		qValue += weights[4] * numAttackers;
-		qValue += weights[5] * totalAllyDistance;
-		qValue += weights[6] * footLoc.x;
-		qValue += weights[7] * footLoc.y;
+		qValue += weights[5] * footLoc.x;
+		qValue += weights[6] * footLoc.y;
 		
 		return qValue;
 	}
@@ -434,7 +444,6 @@ public class RLAgent extends Agent {
 		if(currentUnit != null) {
 			currentUnitLoc = new Point(currentUnit.getXPosition(), currentUnit.getYPosition());
 		} else {
-			//TODO maybe find a more accurate way to do this
 			currentUnitLoc = prevState.getFootmanLoc(unitId);
 		}
 		for(int id : footmanIds) {
@@ -461,11 +470,11 @@ public class RLAgent extends Agent {
 	}
 	
 	public void printWeights() {
-		for(int i = 0; i < weights.length; i++) {
-			System.out.println(i + " " +  weights[i]);
-		}
-		System.out.println();
-		System.out.println();
+//		for(int i = 0; i < weights.length; i++) {
+//			System.out.println(i + " " +  weights[i]);
+//		}
+//		System.out.println();
+//		System.out.println();
 	}
 
 	@Override
