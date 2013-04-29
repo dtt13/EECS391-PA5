@@ -393,8 +393,8 @@ public class RLAgent extends Agent {
 		weights[2] = weights[2] + LEARNING_RATE * updateFactor * maxHP;
 		weights[3] = weights[3] + LEARNING_RATE * updateFactor * newFriendHP;
 		weights[4] = weights[4] + LEARNING_RATE * updateFactor * maxNumAttackers;
-		weights[6] = weights[5] + LEARNING_RATE * updateFactor * newFriendLoc.x;
-		weights[7] = weights[6] + LEARNING_RATE * updateFactor * newFriendLoc.y;
+		weights[5] = weights[5] + LEARNING_RATE * updateFactor * newFriendLoc.x;
+		weights[6] = weights[6] + LEARNING_RATE * updateFactor * newFriendLoc.y;
 		
 		normalizeWeights();
 	}
