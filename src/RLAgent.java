@@ -388,8 +388,6 @@ public class RLAgent extends Agent {
 		//update Q function weights	
 		double updateFactor = reward + DISCOUNTING_FACTOR * maxQ - previousQ;
 		
-//		System.out.println("Update factor: " + updateFactor);
-		
 		weights[0] = weights[0] + LEARNING_RATE * updateFactor;
 		weights[1] = weights[1] + LEARNING_RATE * updateFactor * chebychevDist(maxLoc, newFriendLoc);
 		weights[2] = weights[2] + LEARNING_RATE * updateFactor * maxHP;
