@@ -2,8 +2,6 @@ import java.awt.Point;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import edu.cwru.sepia.environment.model.state.Unit.UnitView;
-
 public class PreviousState {
 
 	private ArrayList<Integer> footmanIds = new ArrayList<Integer>();
@@ -33,33 +31,14 @@ public class PreviousState {
 		}
 	}
 	
-	/**
-	 * 
-	 * @param id - The id of the footman you are concerned with.
-	 * @return null if the footman doesn't exist. The footman's HP if it does exist.
-	 */
-	public Integer getFootmanHP(int id) {
-		return footmanHP.get(id);
+	public ArrayList<Integer> getFootmanIds() {
+		return footmanIds;
 	}
 	
-	/**
-	 * 
-	 * @param id - The id of the footman you are concerned with.
-	 * @return null if the footman doesn't exist. The id of the enemy that that footman was attacking if it does exist.
-	 */
-	public Integer getFootmanAttack(int id) {
-		return footmanAttack.get(id);
+	public ArrayList<Integer> getEnemyIds() {
+		return enemyIds;
 	}
-	
-	/**
-	 * 
-	 * @param id - The id of the enemy you are concerned with.
-	 * @return null if the enemy doesn't exist. The enemy's HP if it does exist.
-	 */
-	public Integer getEnemyHP(int id) {
-		return enemyHP.get(id);
-	}
-	
+
 	/**
 	 * 
 	 * @param id - ID of the footman whose HP has changed.
@@ -72,12 +51,11 @@ public class PreviousState {
 	
 	/**
 	 * 
-	 * @param footmanId - ID of the footman who is attacking
-	 * @param enemyId - ID of the enemy being attacked
+	 * @param id - The id of the footman you are concerned with.
+	 * @return null if the footman doesn't exist. The footman's HP if it does exist.
 	 */
-	public void setFootmanAttack(int footmanId, int enemyId) {
-		footmanAttack.remove(footmanId);
-		footmanAttack.put(footmanId, enemyId);
+	public Integer getFootmanHP(int id) {
+		return footmanHP.get(id);
 	}
 	
 	/**
@@ -89,15 +67,72 @@ public class PreviousState {
 		enemyHP.remove(id);
 		enemyHP.put(id, HP);
 	}
-	
-	public ArrayList<Integer> getFootmanIds() {
-		return footmanIds;
+
+	/**
+	 * 
+	 * @param id - ID of the enemy you are concerned with.
+	 * @return null if the enemy doesn't exist. The enemy's HP if it does exist.
+	 */
+	public Integer getEnemyHP(int id) {
+		return enemyHP.get(id);
 	}
 	
-	public ArrayList<Integer> getEnemyIds() {
-		return enemyIds;
+	/**
+	 * 
+	 * @param id - ID of the footman whose location has changed.
+	 * @param location - the new location
+	 */
+	public void setFootmanLoc(int id, Point location) {
+		footmanLocs.remove(id);
+		footmanLocs.put(id, location);
+	}
+	
+	/**
+	 * 
+	 * @param id - ID of the footman you are concerned with.
+	 * @return null if the footman doesn't exist. The footman's location if it does exist.
+	 */
+	public Point getFootmanLoc(int id) {
+		return footmanLocs.get(id);
+	}
+	
+	/**
+	 * 
+	 * @param id - ID of the enemy whose location has changed.
+	 * @param location - the new location
+	 */
+	public void setEnemyLoc(int id, Point location) {
+		enemyLocs.remove(id);
+		enemyLocs.put(id, location);
+	}
+	/**
+	 * 
+	 * @param id - ID of the enemy you are concerned with.
+	 * @return null if the enemy doesn't exist. The enemy's location if it does exist.
+	 */
+	public Point getEnemyLoc(int id) {
+		return enemyLocs.get(id);
 	}
 
+	/**
+	 * 
+	 * @param footmanId - ID of the footman who is attacking
+	 * @param enemyId - ID of the enemy being attacked
+	 */
+	public void setFootmanAttack(int footmanId, int enemyId) {
+		footmanAttack.remove(footmanId);
+		footmanAttack.put(footmanId, enemyId);
+	}
+
+	/**
+	 * 
+	 * @param id - The id of the footman you are concerned with.
+	 * @return null if the footman doesn't exist. The id of the enemy that that footman was attacking if it does exist.
+	 */
+	public Integer getFootmanAttack(int id) {
+		return footmanAttack.get(id);
+	}
+	
 	public void markFootmanForRemoval(int id) {
 		if(!toRemoveFootman.contains(id)) {
 			toRemoveFootman.add(id);
@@ -142,25 +177,7 @@ public class PreviousState {
 		}
 		toRemoveEnemy = new ArrayList<Integer>();
 	}
-	
-	public Point getEnemyLoc(int id) {
-		return enemyLocs.get(id);
-	}
-	
-	public void setEnemyLoc(int id, Point location) {
-		enemyLocs.remove(id);
-		enemyLocs.put(id, location);
-	}
-	
-	public Point getFootmanLoc(int id) {
-		return footmanLocs.get(id);
-	}
-	
-	public void setFootmanLoc(int id, Point location) {
-		footmanLocs.remove(id);
-		footmanLocs.put(id, location);
-	}
-	
+
 	public int getNumAttackers(int enemyId) {
 		int numAttackers = 0;
 		for(int id : footmanAttack.values()) {
@@ -169,14 +186,5 @@ public class PreviousState {
 			}
 		}
 		return numAttackers;
-	}
-	
-	public int getTotalAllyDistance(int currentId) {
-		int totalDist = 0;
-		Point currentUnitLoc = footmanLocs.get(currentId);
-		for(int id : footmanIds) {
-			totalDist += RLAgent.chebychevDist(getFootmanLoc(id), currentUnitLoc);
-		}
-		return totalDist;
 	}
 }
